@@ -1,0 +1,4 @@
+COMMAND_PREFIX = arm-eabi-
+CFLAGS = -mcpu=cortex-m3 -mthumb
+
+VERSION = 0x000106

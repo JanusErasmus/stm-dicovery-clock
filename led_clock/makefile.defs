@@ -1,0 +1,6 @@
+COMMAND_PREFIX = arm-eabi-
+CFLAGS =  -mcpu=cortex-m3 -mthumb -std=c99
+ASFLAGS = -mcpu=cortex-m3 -mthumb  
+LDFLAGS = -mcpu=cortex-m3 -mthumb 
+
+VERSION = 0x000100
