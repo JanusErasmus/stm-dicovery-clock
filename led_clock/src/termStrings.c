@@ -16,6 +16,33 @@ char* t_strcmp(const char* str1, const char* str2)
 	 return (char*)&str1[k];
 }
 
+char* t_strncmp(const char* str1, const char* str2, uint32_t len)
+{
+	char * p = (char*)str1;
+	int k = 0;
+
+	while((str1[k] == str2[k]) && len--)
+	{
+		p = (char*)&str1[k];
+
+		if(!len)
+			p = 0;
+
+
+		k++;
+
+		if(str1[k] == 0 && str2[k] == 0)
+			return 0;
+		else if (str1[k] == 0 || str2[k] == 0)
+		{
+			break;
+		}
+	}
+
+
+	return p;
+}
+
 uint16_t t_strlen(const char* str)
 {
 	uint16_t len = 0;
@@ -79,7 +106,7 @@ uint16_t t_atoi(const char * str)
 
 	uint16_t len = t_strlen(str);
 
-	char * charNum = str;
+	char * charNum = (char*)str;
 
 	if(len == 4)
 	{

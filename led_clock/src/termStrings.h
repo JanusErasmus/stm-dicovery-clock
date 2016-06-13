@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 uint16_t t_strlen(const char* str);
+char* t_strncmp(const char* str1, const char* str2, uint32_t len);
 char* t_strcmp(const char* str1, const char* str2);
 void t_parseArgs(char * str, char * argv[], int * argc);
 void t_stripWhite(char * str);

@@ -6,6 +6,7 @@
 #include "led.h"
 #include "timer2.h"
 #include "rtc.h"
+#include "gps.h"
 
 void delay();
 
@@ -16,8 +17,8 @@ void* memcpy( void * destination, const void * source, size_t num );
 
 void minuteAction(uint8_t hour, uint8_t minute)
 {
-	t_print("Time\n");
-	led_set(hour, minute);
+	//t_print("Time\n");
+	led_set(gpsHour, gpsMinute);
 }
 
 void startWatchdog()
@@ -47,6 +48,7 @@ int main(void)
 	t_print("\n");
 
 
+	initGPS();
 	initLED();
 	timer2Init();
 	initRTC();
