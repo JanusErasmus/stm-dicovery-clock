@@ -118,23 +118,85 @@ void initGPS()
 	NVIC_Init(&termInt);
 
 	USART_ITConfig(termGPS, USART_IT_RXNE, ENABLE);
+
+	GPIO_InitTypeDef pin;
+	pin.GPIO_Mode = GPIO_Mode_Out_PP;
+	pin.GPIO_Speed = GPIO_Speed_2MHz;
+	pin.GPIO_Pin = GPIO_Pin_9;
+	GPIO_Init(GPIOC, &pin);
+	GPIO_SetBits(GPIOC, GPIO_Pin_9);
+
+
+	pin.GPIO_Pin = GPIO_Pin_8;
+	GPIO_Init(GPIOC, &pin);
+	GPIO_ResetBits(GPIOC, GPIO_Pin_8);
+}
+
+bool gps_getTime(uint8_t *hour, uint8_t *min)
+{
+	if((23 <= gpsHour) || (gpsHour == 0))
+	{
+		GPIO_ResetBits(GPIOC, GPIO_Pin_8);
+		return 0;
+	}
+
+	*hour = gpsHour + 2;
+	*min = gpsMinute;
+
+	GPIO_SetBits(GPIOC, GPIO_Pin_8);
+
+	return 1;
 }
 
 void handleNMEA(char * nmeaStr)
 {
-	t_print(nmeaStr);
-	t_print("\n");
+//	t_print(nmeaStr);
+//	t_print("\n");
+	char *char_ptr[4];
+	char_ptr[0] = 0;
+	char_ptr[1] = 0;
+	char_ptr[2] = 0;
+	char_ptr[3] = 0;
 
-	nmeaStr[4] = 0;
-	gpsMinute = t_atoi(&nmeaStr[2]);
+	int index = 0;
+	while(*nmeaStr)
+	{
+		if(*nmeaStr == ',')
+		{
+			*nmeaStr = 0;
+			char_ptr[index] = &nmeaStr[1];
 
-	nmeaStr[2] = 0;
-	gpsHour = t_atoi(nmeaStr) + 2;
+			if(++index >= 4)
+				break;
+		}
 
-	d_print(gpsHour);
-	t_print(":");
-	d_print(gpsMinute);
-	t_print("\n");
+		nmeaStr++;
+	}
+
+	gpsHour = index;
+
+	if(char_ptr[0] && t_strlen(char_ptr[0]))
+	{
+		char_ptr[0][4] = 0;
+		gpsMinute = t_atoi(&char_ptr[0][2]);
+
+		char_ptr[0][2] = 0;
+		gpsHour = t_atoi(char_ptr[0]);
+
+		static uint8_t flag = 0;
+		if(flag)
+			GPIO_ResetBits(GPIOC, GPIO_Pin_9);
+		else
+			GPIO_SetBits(GPIOC, GPIO_Pin_9);
+
+		flag = !flag;
+	}
+
+
+//	d_print(gpsHour);
+//	t_print(":");
+//	d_print(gpsMinute);
+//	t_print("\n");
 
 }
 
@@ -154,20 +216,14 @@ void USART3_IRQHandler(void)
 		g_buff[g_buffLen] = 0;
 		g_buffLen = GPS_BUFF_LEN;
 
-//		g_buff[21] = 0;
-
-		//t_print(g_buff);
-
 		if(!t_strncmp(g_buff, "$GPGGA", 6))
 		{
-			g_buff[13] = 0;
-			handleNMEA(&g_buff[7]);
+			handleNMEA(g_buff);
 		}
 	}
 
 	if(++g_buffLen >= GPS_BUFF_LEN)
 		g_buffLen = 0;
-
 
 }
 

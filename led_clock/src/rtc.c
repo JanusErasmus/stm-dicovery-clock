@@ -312,7 +312,7 @@ void execAlarm(struct Alarm_s * alm, uint8_t counter)
 	}
 }
 
-void rtc_getTime(uint8_t * hour, uint8_t * min)
+void rtc_getTime(uint8_t *hour, uint8_t *min)
 {
 	if(hour && min)
 	{
@@ -330,10 +330,20 @@ void checkAlarms()
 	IWDG_ReloadCounter();
 }
 
+void rtc_set(uint16_t hour, uint16_t minute)
+{
+	mHour = hour;
+	mMinute = minute;
+
+	uint32_t CounterValue = ((mHour * 3600)+ (mMinute * 60));
+
+	RTC_WaitForLastTask();
+	RTC_SetCounter(CounterValue);
+	RTC_WaitForLastTask();
+}
+
 void rtc_setTime(char * argv[], int argc)
 {
-
-
 	if(argc > 4)
 	{
 		t_print("Setting time\n");
@@ -354,6 +364,8 @@ void rtc_setTime(char * argv[], int argc)
 		BKP_WriteBackupRegister(BKP_DR2,s_DateStructVar.Day);
 		BKP_WriteBackupRegister(BKP_DR3,s_DateStructVar.Month);
 		BKP_WriteBackupRegister(BKP_DR4,s_DateStructVar.Year);
+
+
 	}
 	else if(argc > 1)
 	{

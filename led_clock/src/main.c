@@ -15,10 +15,25 @@ uint8_t feedingFlag  = 0;
 typedef int size_t;
 void* memcpy( void * destination, const void * source, size_t num );
 
-void minuteAction(uint8_t hour, uint8_t minute)
+void hourAction(uint8_t hour, uint8_t minute)
 {
 	//t_print("Time\n");
-	led_set(gpsHour, gpsMinute);
+	uint8_t h = 0, m = 0;
+
+	if(gps_getTime(&h, &m))
+		rtc_set(h, m);
+}
+
+void halfMinuteAction(uint8_t hour, uint8_t minute)
+{
+	uint8_t h = 0, m = 0;
+
+	if(!gps_getTime(&h, &m))
+	{
+		rtc_getTime(&h,&m);
+	}
+
+	led_set(h, m);
 }
 
 void startWatchdog()
@@ -48,12 +63,13 @@ int main(void)
 	t_print("\n");
 
 
-	initGPS();
 	initLED();
+	initGPS();
 	timer2Init();
 	initRTC();
 
-	rtc_setMinuteAlarm(1, minuteAction);
+	rtc_setHourAlarm(1, hourAction);
+	rtc_setSecondAlarm(30, halfMinuteAction);
 
 	t_print(">>");
 
@@ -79,7 +95,6 @@ int main(void)
 
 	while(1)
 	{
-
 		if(GPIO_ReadInputDataBit(GPIOA,GPIO_Pin_0))
 		{
 			t_print("User pushing button\n");

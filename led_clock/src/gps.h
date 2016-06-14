@@ -2,10 +2,9 @@
 #define _GPS_H
 #include <stm32f10x.h>
 
-extern uint8_t gpsHour;
-extern uint8_t gpsMinute;
-
 void initGPS();
+
+bool gps_getTime(uint8_t *hour, uint8_t *min);
 
 #endif //_TERMINAL_H
 
