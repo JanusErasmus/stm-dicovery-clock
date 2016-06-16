@@ -7,6 +7,15 @@
 #include "led.h"
 #include "terminal.h"
 
+
+extern void delay();
+void longdelay()
+{
+	uint8_t cnt = 2;
+	while(cnt--)
+		delay();
+}
+
 //define the terminal that will be used
 //#define TERM_UART1
 #define TERM_UART2
@@ -21,6 +30,9 @@ USART_TypeDef* termGPS = 0;
 
 uint8_t gpsHour = 0;
 uint8_t gpsMinute = 0;
+
+uint8_t gpsON = 0;
+uint8_t gpsOK = 0;
 
 void initGPS()
 {
@@ -124,80 +136,141 @@ void initGPS()
 	pin.GPIO_Speed = GPIO_Speed_2MHz;
 	pin.GPIO_Pin = GPIO_Pin_9;
 	GPIO_Init(GPIOC, &pin);
-	GPIO_SetBits(GPIOC, GPIO_Pin_9);
+	GPIO_ResetBits(GPIOC, GPIO_Pin_9);
 
 
 	pin.GPIO_Pin = GPIO_Pin_8;
 	GPIO_Init(GPIOC, &pin);
 	GPIO_ResetBits(GPIOC, GPIO_Pin_8);
+
+	pin.GPIO_Pin = GPIO_Pin_0;
+	GPIO_Init(GPIOC, &pin);
+	GPIO_ResetBits(GPIOC, GPIO_Pin_0);
+
+	delay();
 }
+
+void gps_igt()
+{
+	GPIO_SetBits(GPIOC, GPIO_Pin_0);
+	delay();
+	GPIO_ResetBits(GPIOC, GPIO_Pin_0);
+}
+
 
 bool gps_getTime(uint8_t *hour, uint8_t *min)
 {
-	if((23 <= gpsHour) || (gpsHour == 0))
-	{
-		GPIO_ResetBits(GPIOC, GPIO_Pin_8);
-		return 0;
-	}
+	uint8_t H =  gpsHour + 2;
+	if(H >= 24)
+		H -= 24;
 
-	*hour = gpsHour + 2;
+	*hour = H;
 	*min = gpsMinute;
 
-	GPIO_SetBits(GPIOC, GPIO_Pin_8);
+	if(!gpsON)
+	{
+		gps_igt();
+	}
+	gpsON = 0;
+
+	if(!gpsOK)
+		return 0;
+
+	gpsOK = 0;
+	GPIO_ResetBits(GPIOC, GPIO_Pin_8);
 
 	return 1;
 }
 
-void handleNMEA(char * nmeaStr)
+uint8_t parseNMEA(char *string, char ** argv, uint8_t argc)
 {
-//	t_print(nmeaStr);
-//	t_print("\n");
-	char *char_ptr[4];
-	char_ptr[0] = 0;
-	char_ptr[1] = 0;
-	char_ptr[2] = 0;
-	char_ptr[3] = 0;
-
 	int index = 0;
-	while(*nmeaStr)
+	while(*string)
 	{
-		if(*nmeaStr == ',')
+		if(*string == ',')
 		{
-			*nmeaStr = 0;
-			char_ptr[index] = &nmeaStr[1];
+			*string = 0;
+			argv[index] = &string[1];
 
-			if(++index >= 4)
+			if(++index >= argc)
 				break;
 		}
 
-		nmeaStr++;
+		string++;
 	}
 
-	gpsHour = index;
+	return index;
+}
 
-	if(char_ptr[0] && t_strlen(char_ptr[0]))
+void handleTime(char * gpgga)
+{
+	char *argv[7];
+	uint8_t argc = parseNMEA(gpgga, argv, 7);
+
+	if(argc < 5)
+		return;
+
+	argv[0][4] = 0;
+	gpsMinute = t_atoi(&argv[0][2]);
+
+	argv[0][2] = 0;
+	gpsHour = t_atoi(argv[0]);
+
+	static uint8_t flag = 0;
+	if(flag)
+		GPIO_ResetBits(GPIOC, GPIO_Pin_9);
+	else
+		GPIO_SetBits(GPIOC, GPIO_Pin_9);
+
+	flag = !flag;
+
+	d_print(gpsHour);
+	t_print(":");
+	d_print(gpsMinute);
+	t_print("\n");
+}
+
+void handleSatelites(char * gpgsv)
+{
+	char *argv[9];
+	uint8_t argc = parseNMEA(gpgsv, argv, 9);
+
+	if(argc < 8)
+		return;
+
+//	t_print(argv[2]);  //Satellites  in view
+//	t_print(" ");
+//	t_print(argv[3]);	//PRN number
+//	t_print(" ");
+	t_print(argv[4]);	//elivation
+//	t_print(" ");
+//	t_print(argv[5]);	//azimuth
+//	t_print(" ");
+//	t_print(argv[6]);	//SNR
+	t_print("\n");
+	if( t_atoi(argv[4]) > 1)
 	{
-		char_ptr[0][4] = 0;
-		gpsMinute = t_atoi(&char_ptr[0][2]);
+		gpsOK = 1;
+		GPIO_SetBits(GPIOC, GPIO_Pin_8);
+	}
+	else
+	{
+		gpsOK = 0;
+		GPIO_ResetBits(GPIOC, GPIO_Pin_8);
+	}
+}
 
-		char_ptr[0][2] = 0;
-		gpsHour = t_atoi(char_ptr[0]);
-
-		static uint8_t flag = 0;
-		if(flag)
-			GPIO_ResetBits(GPIOC, GPIO_Pin_9);
-		else
-			GPIO_SetBits(GPIOC, GPIO_Pin_9);
-
-		flag = !flag;
+void handleNMEA(char * nmeaStr)
+{
+	if(!t_strncmp(nmeaStr, "$GPGGA", 6))
+	{
+		handleTime(nmeaStr);
 	}
 
-
-//	d_print(gpsHour);
-//	t_print(":");
-//	d_print(gpsMinute);
-//	t_print("\n");
-
+	if(!t_strncmp(nmeaStr, "$GPGSV", 6))
+	{
+		handleSatelites(nmeaStr);
+	}
 }
 
 #ifdef TERM_UART1
@@ -215,11 +288,14 @@ void USART3_IRQHandler(void)
 	{
 		g_buff[g_buffLen] = 0;
 		g_buffLen = GPS_BUFF_LEN;
+		gpsON = 1;
 
-		if(!t_strncmp(g_buff, "$GPGGA", 6))
-		{
-			handleNMEA(g_buff);
-		}
+//		g_buff[20] = 0;
+//		t_print(g_buff);
+//		t_print("\n");
+//		return;
+
+		handleNMEA(g_buff);
 	}
 
 	if(++g_buffLen >= GPS_BUFF_LEN)

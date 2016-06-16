@@ -90,7 +90,11 @@ int main(void)
 //		m+=11;
 //	}
 
-	rtc_getTime(&h,&m);
+		if(!gps_getTime(&h, &m))
+		{
+			rtc_getTime(&h,&m);
+		}
+
 	led_set(h, m);
 
 	while(1)
