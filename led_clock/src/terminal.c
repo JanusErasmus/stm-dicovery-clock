@@ -7,6 +7,8 @@
 #include "terminal.h"
 #include "termHandler.h"
 
+#define DISABLE_TX
+
 //define the terminal that will be used
 #define TERM_UART1
 //#define TERM_UART2
@@ -149,6 +151,9 @@ void handleTerm()
 
 void t_print(const char* str)
 {
+#ifdef DISABLE_TX
+	return;
+#endif
 	uint16_t len = t_strlen(str);
 
 	for(int k = 0; k < len; k++)
@@ -168,6 +173,9 @@ void t_putc(char c)
 
 void showReg(const char* name, uint32_t reg)
 {
+#ifdef DISABLE_TX
+	return;
+#endif
 	t_print(name);
 	t_print(": ");
 	h_print(reg);
@@ -175,6 +183,9 @@ void showReg(const char* name, uint32_t reg)
 
 void h_print(uint32_t reg)
 {
+#ifdef DISABLE_TX
+	return;
+#endif
 	t_print("0x");
 	uint8_t digit = (reg >> 28) & 0x0F;
 	d_print(digit);
@@ -206,6 +217,10 @@ void h_print(uint32_t reg)
 
 void d_print(uint16_t reg)
 {
+
+#ifdef DISABLE_TX
+	return;
+#endif
 
 	uint8_t thFlag = 0, hFlag = 0, tFlag = 0;
 

@@ -34,8 +34,9 @@ uint8_t gpsMinute = 0;
 uint8_t gpsON = 0;
 uint8_t gpsOK = 0;
 
-void initGPS()
+void enableUART()
 {
+	g_buffLen = 0;
 #ifdef TERM_UART1
 	termGPS = USART1;
 	//enable USART 1 clock
@@ -58,6 +59,48 @@ void initGPS()
 #warning You need to define a terminal UART
 #endif
 
+	USART_Cmd(termGPS, ENABLE);
+
+	USART_InitTypeDef usartSetup;
+	usartSetup.USART_BaudRate = 4800;
+	usartSetup.USART_WordLength = USART_WordLength_8b;
+	usartSetup.USART_StopBits = USART_StopBits_1;
+	usartSetup.USART_Parity = USART_Parity_No;
+	usartSetup.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
+	usartSetup.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+	USART_Init(termGPS, &usartSetup);
+
+	USART_ITConfig(termGPS, USART_IT_RXNE, ENABLE);
+}
+
+void disableUART()
+{
+#ifdef TERM_UART1
+	termGPS = USART1;
+	//enable USART 1 clock
+	RCC_APB2PeriphClockCmd(RCC_APB2ENR_USART1EN, DISABLE);
+	//Enable GPIOA clock
+	RCC_APB2PeriphClockCmd(RCC_APB2ENR_IOPAEN, DISABLE);
+#elif defined TERM_UART2
+	termGPS = USART2;
+	//enable USART 2 clock
+	RCC_APB1PeriphClockCmd(RCC_APB1ENR_USART2EN, DISABLE);
+	//Enable GPIOA clock
+	RCC_APB2PeriphClockCmd(RCC_APB2ENR_IOPAEN, DISABLE);
+#elif TERM_UART3_REMAPPED
+	termGPS = USART3;
+	//enable USART 3 clock
+	RCC_APB1PeriphClockCmd(RCC_APB1ENR_USART3EN, DISABLE);
+	//Enable GPIOC clock
+	RCC_APB2PeriphClockCmd(RCC_APB2ENR_IOPCEN, DISABLE);
+#else
+#warning You need to define a terminal UART
+#endif
+}
+
+void initGPS()
+{
+	enableUART();
 
 	//enable Alternate function reg
 	RCC_APB2PeriphClockCmd(RCC_APB2ENR_AFIOEN, ENABLE);
@@ -102,18 +145,6 @@ void initGPS()
 #endif
 
 
-	USART_Cmd(termGPS, ENABLE);
-
-	USART_InitTypeDef usartSetup;
-	usartSetup.USART_BaudRate = 4800;
-	usartSetup.USART_WordLength = USART_WordLength_8b;
-	usartSetup.USART_StopBits = USART_StopBits_1;
-	usartSetup.USART_Parity = USART_Parity_No;
-	usartSetup.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
-	usartSetup.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
-	USART_Init(termGPS, &usartSetup);
-
-
 	//Map UART interrupt
 	NVIC_InitTypeDef termInt;
 #ifdef TERM_UART1
@@ -128,8 +159,6 @@ void initGPS()
 	termInt.NVIC_IRQChannelPreemptionPriority = 1;
 	termInt.NVIC_IRQChannelSubPriority = 3;
 	NVIC_Init(&termInt);
-
-	USART_ITConfig(termGPS, USART_IT_RXNE, ENABLE);
 
 	GPIO_InitTypeDef pin;
 	pin.GPIO_Mode = GPIO_Mode_Out_PP;
@@ -152,9 +181,11 @@ void initGPS()
 
 void gps_igt()
 {
+	disableUART();
 	GPIO_SetBits(GPIOC, GPIO_Pin_0);
 	delay();
 	GPIO_ResetBits(GPIOC, GPIO_Pin_0);
+	enableUART();
 }
 
 

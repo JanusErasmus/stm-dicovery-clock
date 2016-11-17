@@ -15,25 +15,23 @@ uint8_t feedingFlag  = 0;
 typedef int size_t;
 void* memcpy( void * destination, const void * source, size_t num );
 
+typedef enum
+{
+	IDLE,
+	HOUR,
+	H_MINUTE
+}eGPSAaction;
+
+eGPSAaction currAction = IDLE;
+
 void hourAction(uint8_t hour, uint8_t minute)
 {
-	//t_print("Time\n");
-	uint8_t h = 0, m = 0;
-
-	if(gps_getTime(&h, &m))
-		rtc_set(h, m);
+	currAction = HOUR;
 }
 
 void halfMinuteAction(uint8_t hour, uint8_t minute)
 {
-	uint8_t h = 0, m = 0;
-
-	if(!gps_getTime(&h, &m))
-	{
-		rtc_getTime(&h,&m);
-	}
-
-	led_set(h, m);
+	currAction = H_MINUTE;
 }
 
 void startWatchdog()
@@ -82,28 +80,56 @@ int main(void)
 	GPIO_ResetBits(GPIOA, GPIO_Pin_0);
 
 	uint8_t h = 0, m = 0;
-//	for(uint8_t k = 0; k < 10; k++)
-//	{
-//		led_set(h, m);
-		delay();
-//		h+=11;
-//		m+=11;
-//	}
+	//	for(uint8_t k = 0; k < 10; k++)
+	//	{
+	//		led_set(h, m);
+	delay();
+	//		h+=11;
+	//		m+=11;
+	//	}
 
-		if(!gps_getTime(&h, &m))
-		{
-			rtc_getTime(&h,&m);
-		}
+	if(!gps_getTime(&h, &m))
+	{
+		rtc_getTime(&h,&m);
+	}
 
 	led_set(h, m);
 
 	while(1)
 	{
-		if(GPIO_ReadInputDataBit(GPIOA,GPIO_Pin_0))
-		{
-			t_print("User pushing button\n");
-		}
 		delay();
+
+		switch(currAction)
+		{
+		case IDLE:
+			if(GPIO_ReadInputDataBit(GPIOA,GPIO_Pin_0))
+			{
+				t_print("User pushing button\n");
+			}
+			break;
+		case HOUR:
+		{
+			//t_print("Time\n");
+
+			if(gps_getTime(&h, &m))
+				rtc_set(h, m);
+
+			currAction = IDLE;
+		}
+		break;
+		case H_MINUTE:
+		{
+			if(!gps_getTime(&h, &m))
+			{
+				rtc_getTime(&h,&m);
+			}
+
+			led_set(h, m);
+
+			currAction = IDLE;
+		}
+		break;
+		}
 	}
 
 	return 0;
