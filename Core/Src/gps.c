@@ -13,6 +13,7 @@ static int head = 0;
 static int tail = 0;
 static int sentence_len = 0;
 static char sentence[RX_BUFF_LEN];
+static uint32_t last_sentence = 0;
 int gps_ok = 0;
 
 void gps_handle_byte(uint8_t byte)
@@ -67,6 +68,7 @@ static void handleTime(char * gpgga)
 
 	printf("GPS: %02d:%02d:%02d\n", _hours, _minutes, gpsSecond);
 	HAL_GPIO_TogglePin(GPIOC, LD3_Pin);
+	last_sentence = HAL_GetTick();
 }
 
 
@@ -149,12 +151,24 @@ void gps_run()
 		if(++sentence_len > (RX_BUFF_LEN - 2))
 			sentence_len = 0;
 	}
+
+	//when we have not received any sentences for the last 30s toggle GPS IGT pin
+	uint32_t tick = HAL_GetTick();
+	if((tick > 30000) && last_sentence < (tick - 30000))
+	{
+		last_sentence = tick;
+		printf("GPS: Toggle IGT\n");
+		gps_igt();
+	}
 }
 
 int gps_get_time(int *hours, int *minutes)
 {
 	if(!gps_ok)
 		return 0;
+
+	gps_ok = 0;
+	HAL_GPIO_WritePin(GPIOC, LD4_Pin, GPIO_PIN_RESET);
 
 	*hours = _hours;
 	*minutes = _minutes;

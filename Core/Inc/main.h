@@ -64,6 +64,12 @@ void Error_Handler(void);
 #define NRF_IRQ_GPIO_Port GPIOC
 #define NRF_CE_Pin GPIO_PIN_2
 #define NRF_CE_GPIO_Port GPIOC
+#define LED_SEG_0_Pin GPIO_PIN_4
+#define LED_SEG_0_GPIO_Port GPIOA
+#define LED_SEG_1_Pin GPIO_PIN_5
+#define LED_SEG_1_GPIO_Port GPIOA
+#define LED_SEG_2_Pin GPIO_PIN_6
+#define LED_SEG_2_GPIO_Port GPIOA
 #define TP_Pin GPIO_PIN_7
 #define TP_GPIO_Port GPIOA
 #define LED_PIN_9_Pin GPIO_PIN_13

@@ -6,6 +6,7 @@
 
  void led_animate();
 void led_set_time(int hour, int minute);
+void led_set_temperature(double temp);
 
 #ifdef __cplusplus
  }

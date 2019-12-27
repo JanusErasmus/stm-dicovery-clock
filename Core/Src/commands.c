@@ -13,6 +13,9 @@
 
 extern RTC_HandleTypeDef hrtc;
 extern void debug_gps(uint8_t argc, char **argv);
+extern void debug_nrf(uint8_t argc, char **argv);
+extern void debug_adc(uint8_t argc, char **argv);
+extern void debug_led(uint8_t argc, char **argv);
 
 void show_rtc(uint8_t argc, char **argv)
 {
@@ -40,9 +43,18 @@ void show_rtc(uint8_t argc, char **argv)
 const sTermEntry_t rtcEntry =
 { "rtc", "Show RTC time", show_rtc };
 
-
 const sTermEntry_t gpsEntry =
 { "gps", "Toggle GPS IGT pin", debug_gps };
+
+const sTermEntry_t nrfEntry =
+{ "n", "Report status via NRF", debug_nrf };
+
+const sTermEntry_t adcEntry =
+{ "a", "Sample analog", debug_adc };
+
+
+const sTermEntry_t tempEntry =
+{ "t", "Set Temperature", debug_led };
 
 const sTermEntry_t *cli_entries[] =
 {
@@ -52,5 +64,8 @@ const sTermEntry_t *cli_entries[] =
       &bootEntry,
       &rtcEntry,
       &gpsEntry,
+      &nrfEntry,
+      &adcEntry,
+      &tempEntry,
       0
 };

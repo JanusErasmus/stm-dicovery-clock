@@ -8,10 +8,24 @@
 #include "Utils/crc.h"
 #include "interface_nrf24.h"
 
+#define MINIMUM_REPORT_RATE 600000// 1800000
 
 static const uint8_t netAddress[] = {0x23, 0x1B, 0x25};
 static const uint8_t serverAddress[] = {0x12, 0x3B, 0x45};
-static bool reportToServer = true;
+static bool reportToServer = false;
+
+extern "C"{
+
+extern RTC_HandleTypeDef hrtc;
+void sample_adc(double *temperature, double *voltages);
+
+void debug_nrf(uint8_t argc, char **argv)
+{
+	printf("Reporting to server...\n");
+	reportToServer = true;
+}
+
+}
 
 enum nodeFrameType_e
 {
@@ -34,21 +48,31 @@ typedef struct {
 }__attribute__((packed, aligned(4))) nodeData_s;
 
 
-void report(const uint8_t *address)
+void report(const uint8_t *address, bool sampled)
 {
 	nodeData_s pay;
 	memset(&pay, 0, 32);
 	pay.nodeAddress = NODE_ADDRESS;
 	pay.timestamp = HAL_GetTick();
 
+	double temperature, voltages;
+	sample_adc(&temperature, &voltages);
+
+	pay.temperature = voltages * 100000;
+
+	//let the server know when the sample was taken as a sample
+	if(sampled)
+		pay.voltages[2] = 1;
+
+	pay.crc = CRC_8::crc((uint8_t*)&pay, 31);
 
 	//report status in voltages[0-1]
 	printf("TX result %d\n", InterfaceNRF24::get()->transmit(address, (uint8_t*)&pay, 32));
 }
 
-void reportNow()
+void reportNow(bool sampled)
 {
-	report(serverAddress);
+	report(serverAddress, sampled);
 }
 
 bool NRFreceivedCB(int pipe, uint8_t *data, int len)
@@ -100,7 +124,7 @@ bool NRFreceivedCB(int pipe, uint8_t *data, int len)
 	sTime.Hours = hour;
 	sTime.Minutes = min;
 	sTime.Seconds = 0;
-	HAL_StatusTypeDef result = HAL_ERROR; //HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+	HAL_StatusTypeDef result = HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
 	if(result != HAL_OK)
 		printf("Could not set Time!!! %d\n", result);
 
@@ -110,10 +134,10 @@ bool NRFreceivedCB(int pipe, uint8_t *data, int len)
 	printf("Set date %d:%d\n", month, day);
 
 	RTC_DateTypeDef sDate;
-	//HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+	HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
 	sDate.Month = month;
 	sDate.Date = day;
-	result = HAL_ERROR; //HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+	result = HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
 	if(result != HAL_OK)
 		printf("Could not set Date!!! %d\n", result);
 
@@ -127,7 +151,6 @@ bool NRFreceivedCB(int pipe, uint8_t *data, int len)
 	if(down.frameType == COMMAND)
 	{
 		printf("Set Outputs %d\n", down.outputs);
-
 	}
 
 	return false;
@@ -140,12 +163,22 @@ void init_cpp(SPI_HandleTypeDef *spi)
 	InterfaceNRF24::get()->setRXcb(NRFreceivedCB);
 }
 
+static uint32_t lastSample = 0;
+
 void run_cpp()
 {
 	if(reportToServer)
 	{
+		lastSample = HAL_GetTick() + MINIMUM_REPORT_RATE;
 		reportToServer = false;
-		reportNow();
+		reportNow(false);
+	}
+	InterfaceNRF24::get()->run();
+
+	if(lastSample < HAL_GetTick())
+	{
+		lastSample = HAL_GetTick() + MINIMUM_REPORT_RATE;
+		reportNow(true);
 	}
 
 }

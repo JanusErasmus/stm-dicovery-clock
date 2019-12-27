@@ -25,6 +25,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include <Utils/terminal.h>
 #include "gps.h"
@@ -47,6 +48,10 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+
+IWDG_HandleTypeDef hiwdg;
+
 RTC_HandleTypeDef hrtc;
 
 SPI_HandleTypeDef hspi1;
@@ -69,12 +74,49 @@ static void MX_USART3_UART_Init(void);
 static void MX_RTC_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_ADC1_Init(void);
+static void MX_IWDG_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void sample_adc(double *temperature, double *voltages)
+{
+	uint32_t adc_raw[3] = {0};
+
+	HAL_ADCEx_Calibration_Start(&hadc1);
+
+	for (int k = 0; k < 3; ++k)
+	{
+	HAL_ADC_Start(&hadc1);
+	if(HAL_ADC_PollForConversion(&hadc1, 1000) == HAL_OK)
+	{
+		adc_raw[k] = HAL_ADC_GetValue(&hadc1);
+		//printf("ADC[%d]: %lu\n", k, adc_raw[k]);
+	}
+	else
+		break;
+	}
+	HAL_ADC_Stop(&hadc1);
+
+	//this amount of steps measure 1.2V
+	double step = 1.2 / adc_raw[0];
+	//printf("ADC Step %0.3f\n", step);
+	//printf("Vref: %0.3f\n", step * 4095.0);
+
+	double voltage = ((double)adc_raw[1]) * step;
+	//printf(" *	%d\n", (int)voltage);
+	voltage = 1.43 - voltage;
+	//printf(" -	%d\n", voltage);
+	voltage /= 0.0043;
+	//printf(" /	%d\n", voltage);
+	*temperature = (25.0 + voltage) - 11;
+
+	//measure raw voltage
+	voltages[0] = (((double)adc_raw[2] * step));
+}
 
 /* USER CODE END 0 */
 
@@ -112,6 +154,8 @@ int main(void)
   MX_RTC_Init();
   MX_SPI1_Init();
   MX_TIM2_Init();
+  MX_ADC1_Init();
+  MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
   init_cpp(&hspi1);
 
@@ -125,15 +169,17 @@ int main(void)
 
 
   //LED Lamp test
-  int hours = 0, minutes = 0;
+  {
+  uint8_t number = 0;
   for(int k = 0 ; k  < 10; k++)
   {
 	  HAL_Delay(300);
-	  led_set_time(hours, minutes);
-	  hours += 11;
-	  minutes += 11;
+	  led_set_time(number, number);
+	  led_set_temperature((float)k * 11.1);
+	  number += 11;
   }
   HAL_Delay(300);
+  }
 
   /* USER CODE END 2 */
 
@@ -151,6 +197,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	  if(tick < HAL_GetTick())
 	  {
+		  int hours = 0, minutes = 0;
 		  tick = HAL_GetTick() + 15000;
 		  if(gps_get_time(&hours, &minutes))
 		  {
@@ -165,9 +212,14 @@ int main(void)
 			  hours = rtc_time.Hours;
 			  minutes = rtc_time.Minutes;
 		  }
-
 		  led_set_time(hours, minutes);
+
+		  double temperature, voltage;
+		  sample_adc(&temperature, &voltage);
+		  led_set_temperature(voltage * 100.0);
 	  }
+
+	  HAL_IWDG_Refresh(&hiwdg);
   }
   /* USER CODE END 3 */
 }
@@ -184,10 +236,12 @@ void SystemClock_Config(void)
 
   /** Initializes the CPU, AHB and APB busses clocks 
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI
+                              |RCC_OSCILLATORTYPE_LSE;
   RCC_OscInitStruct.LSEState = RCC_LSE_ON;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI_DIV2;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL6;
@@ -208,12 +262,103 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_RTC;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_RTC|RCC_PERIPHCLK_ADC;
   PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSE;
+  PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV2;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+  /** Common config 
+  */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.DiscontinuousConvMode = ENABLE;
+  hadc1.Init.NbrOfDiscConversion = 1;
+  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.NbrOfConversion = 3;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Regular Channel 
+  */
+  sConfig.Channel = ADC_CHANNEL_VREFINT;
+  sConfig.Rank = ADC_REGULAR_RANK_1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_239CYCLES_5;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Regular Channel 
+  */
+  sConfig.Channel = ADC_CHANNEL_TEMPSENSOR;
+  sConfig.Rank = ADC_REGULAR_RANK_2;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Regular Channel 
+  */
+  sConfig.Channel = ADC_CHANNEL_1;
+  sConfig.Rank = ADC_REGULAR_RANK_3;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
+
+}
+
+/**
+  * @brief IWDG Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_IWDG_Init(void)
+{
+
+  /* USER CODE BEGIN IWDG_Init 0 */
+
+  /* USER CODE END IWDG_Init 0 */
+
+  /* USER CODE BEGIN IWDG_Init 1 */
+
+  /* USER CODE END IWDG_Init 1 */
+  hiwdg.Instance = IWDG;
+  hiwdg.Init.Prescaler = IWDG_PRESCALER_256;
+  hiwdg.Init.Reload = 4095;
+  if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN IWDG_Init 2 */
+
+  /* USER CODE END IWDG_Init 2 */
+
 }
 
 /**
@@ -303,7 +448,7 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 5;
+  htim2.Init.Prescaler = 2;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim2.Init.Period = 0x8000;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -449,7 +594,8 @@ static void MX_GPIO_Init(void)
                           |LED_PIN_7_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, TP_Pin|LED_PIN_2_Pin|LED_PIN_3_Pin|LED_PIN_4_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, LED_SEG_0_Pin|LED_SEG_1_Pin|LED_SEG_2_Pin|TP_Pin 
+                          |LED_PIN_2_Pin|LED_PIN_3_Pin|LED_PIN_4_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, LED_PIN_9_Pin|LED_PIN_1_Pin|LED_PIN_0_Pin|LED_PIN_10_Pin 
@@ -461,23 +607,32 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED_PIN_8_GPIO_Port, LED_PIN_8_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : GPS_IGT_Pin NRF_CE_Pin LED_PIN_A_Pin LED_PIN_B_Pin 
-                           LD4_Pin LD3_Pin */
-  GPIO_InitStruct.Pin = GPS_IGT_Pin|NRF_CE_Pin|LED_PIN_A_Pin|LED_PIN_B_Pin 
-                          |LD4_Pin|LD3_Pin;
+  /*Configure GPIO pin : GPS_IGT_Pin */
+  GPIO_InitStruct.Pin = GPS_IGT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPS_IGT_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : NRF_IRQ_Pin */
+  GPIO_InitStruct.Pin = NRF_IRQ_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(NRF_IRQ_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : NRF_CE_Pin LED_PIN_A_Pin LED_PIN_B_Pin LD4_Pin 
+                           LD3_Pin */
+  GPIO_InitStruct.Pin = NRF_CE_Pin|LED_PIN_A_Pin|LED_PIN_B_Pin|LD4_Pin 
+                          |LD3_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : NRF_IRQ_Pin */
-  GPIO_InitStruct.Pin = NRF_IRQ_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(NRF_IRQ_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : TP_Pin SPI1_CS_Pin */
-  GPIO_InitStruct.Pin = TP_Pin|SPI1_CS_Pin;
+  /*Configure GPIO pins : LED_SEG_0_Pin LED_SEG_1_Pin LED_SEG_2_Pin TP_Pin 
+                           SPI1_CS_Pin */
+  GPIO_InitStruct.Pin = LED_SEG_0_Pin|LED_SEG_1_Pin|LED_SEG_2_Pin|TP_Pin 
+                          |SPI1_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -516,6 +671,28 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void debug_adc(uint8_t argc, char **argv)
+{
+	printf("ADC\n");
+
+	double temperature, voltages;
+	sample_adc(&temperature, &voltages);
+
+	printf("CPU: %0.3f\n", temperature);
+	printf("T  : %0.3f\n", voltages * 100);
+}
+
+void debug_led(uint8_t argc, char **argv)
+{
+	if(argc > 1)
+	{
+		double temperature = (double) atoi(argv[1]) / 10.0;
+		printf("Set temp: %f\n", temperature);
+
+		led_set_temperature(temperature);
+	}
+}
+
 int __io_putchar(int ch)
 {
 	if(ch == '\r')
