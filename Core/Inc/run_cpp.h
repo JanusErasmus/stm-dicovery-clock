@@ -5,8 +5,10 @@
  extern "C" {
 #endif
 
-	void init_cpp(SPI_HandleTypeDef *spi);
-	void run_cpp();
+	void cpp_init(SPI_HandleTypeDef *spi);
+	void cpp_run();
+	void cpp_update_temperature(double temperature);
+	void cpp_report_temperature();
 
 #ifdef __cplusplus
  }

@@ -50,8 +50,8 @@ static void handleTime(char * gpgga)
 	if(argc < 5)
 		return;
 
-	argv[0][6] = 0;
-	int gpsSecond = atoi(&argv[0][4]);
+	//argv[0][6] = 0;
+	//int gpsSecond = atoi(&argv[0][4]);
 
 	argv[0][4] = 0;
 	_minutes = atoi(&argv[0][2]);
@@ -66,7 +66,7 @@ static void handleTime(char * gpgga)
 //		GPIO_SetBits(GPIOC, GPIO_Pin_9);
 //	flag = !flag;
 
-	printf("GPS: %02d:%02d:%02d\n", _hours, _minutes, gpsSecond);
+//	printf("GPS: %02d:%02d:%02d\n", _hours, _minutes, gpsSecond);
 	HAL_GPIO_TogglePin(GPIOC, LD3_Pin);
 	last_sentence = HAL_GetTick();
 }
@@ -84,16 +84,17 @@ void handleSatelites(char * gpgsv)
 //	printf(" ");
 //	printf(argv[3]);	//PRN number
 //	printf(" ");
-	printf("E: %s\n", argv[4]);	//elivation
+//	printf("E: %s\n", argv[4]);	//elivation
 //	printf(" ");
 //	printf(argv[5]);	//azimuth
 //	printf(" ");
 //	printf(argv[6]);	//SNR
 
-	if( atoi(argv[4]) > 1)
+	if(!gps_ok && (atoi(argv[4]) > 1))
 	{
 		gps_ok = 1;
 		HAL_GPIO_WritePin(GPIOC, LD4_Pin, GPIO_PIN_SET);
+		printf("GPS: %02d:%02d\n", _hours, _minutes);
 	}
 	else
 	{

@@ -13,11 +13,11 @@
 static const uint8_t netAddress[] = {0x23, 0x1B, 0x25};
 static const uint8_t serverAddress[] = {0x12, 0x3B, 0x45};
 static bool reportToServer = false;
+static double _temperature = 0;
 
 extern "C"{
 
 extern RTC_HandleTypeDef hrtc;
-void sample_adc(double *temperature, double *voltages);
 
 void debug_nrf(uint8_t argc, char **argv)
 {
@@ -55,10 +55,8 @@ void report(const uint8_t *address, bool sampled)
 	pay.nodeAddress = NODE_ADDRESS;
 	pay.timestamp = HAL_GetTick();
 
-	double temperature, voltages;
-	sample_adc(&temperature, &voltages);
 
-	pay.temperature = voltages * 100000;
+	pay.temperature = _temperature * 1000;
 
 	//let the server know when the sample was taken as a sample
 	if(sampled)
@@ -157,7 +155,7 @@ bool NRFreceivedCB(int pipe, uint8_t *data, int len)
 }
 
 extern "C" {
-void init_cpp(SPI_HandleTypeDef *spi)
+void cpp_init(SPI_HandleTypeDef *spi)
 {
 	InterfaceNRF24::init(spi, netAddress, 3);
 	InterfaceNRF24::get()->setRXcb(NRFreceivedCB);
@@ -165,7 +163,7 @@ void init_cpp(SPI_HandleTypeDef *spi)
 
 static uint32_t lastSample = 0;
 
-void run_cpp()
+void cpp_run()
 {
 	if(reportToServer)
 	{
@@ -181,5 +179,15 @@ void run_cpp()
 		reportNow(true);
 	}
 
+}
+
+void cpp_update_temperature(double temperature)
+{
+	_temperature = temperature;
+}
+
+void cpp_report_temperature()
+{
+	lastSample = 0;
 }
 }

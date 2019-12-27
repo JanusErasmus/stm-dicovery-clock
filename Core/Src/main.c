@@ -157,7 +157,7 @@ int main(void)
   MX_ADC1_Init();
   MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
-  init_cpp(&hspi1);
+  cpp_init(&hspi1);
 
   setbuf(stdout, 0);
   printf("LED clock with GPS\n");
@@ -186,17 +186,21 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   uint32_t tick = 0;
+  float previous_temperature = 0;
   while (1)
   {
 	  HAL_Delay(50);
 	  terminal_run();
 	  gps_run();
-	  run_cpp();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  //Refresh display every 15s
 	  if(tick < HAL_GetTick())
 	  {
+		  RTC_TimeTypeDef rtc_time = {0};
+		  HAL_RTC_GetTime(&hrtc, &rtc_time, RTC_FORMAT_BIN);
+
 		  int hours = 0, minutes = 0;
 		  tick = HAL_GetTick() + 15000;
 		  if(gps_get_time(&hours, &minutes))
@@ -204,11 +208,18 @@ int main(void)
 			  hours += 2;
 			  if(hours > 23)
 				  hours -= 24;
+
+			  //Update RTC time if out of sync
+			  if((rtc_time.Hours != hours) || (rtc_time.Minutes != minutes))
+			  {
+				  printf("Updating RTC time\n");
+				  rtc_time.Hours = hours;
+				  rtc_time.Minutes = minutes;
+				  HAL_RTC_SetTime(&hrtc, &rtc_time, RTC_FORMAT_BIN);
+			  }
 		  }
 		  else
 		  {
-			  RTC_TimeTypeDef rtc_time = {0};
-			  HAL_RTC_GetTime(&hrtc, &rtc_time, RTC_FORMAT_BIN);
 			  hours = rtc_time.Hours;
 			  minutes = rtc_time.Minutes;
 		  }
@@ -216,9 +227,20 @@ int main(void)
 
 		  double temperature, voltage;
 		  sample_adc(&temperature, &voltage);
-		  led_set_temperature(voltage * 100.0);
+		  temperature = voltage * 100;
+		  led_set_temperature(temperature);
+		  cpp_update_temperature(temperature);
+
+		  //if temperature has changed with a degree report it
+		  if(((previous_temperature - 0.5) > temperature) || (temperature > (previous_temperature + 0.5)))
+		  {
+			  printf("T delta changed, report it\n");
+			  previous_temperature = temperature;
+			  cpp_report_temperature();
+		  }
 	  }
 
+	  cpp_run();
 	  HAL_IWDG_Refresh(&hiwdg);
   }
   /* USER CODE END 3 */
