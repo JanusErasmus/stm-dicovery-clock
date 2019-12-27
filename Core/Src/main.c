@@ -29,6 +29,7 @@
 #include <Utils/terminal.h>
 #include "gps.h"
 #include "led_display.h"
+#include "run_cpp.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -112,6 +113,8 @@ int main(void)
   MX_SPI1_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
+  init_cpp(&hspi1);
+
   setbuf(stdout, 0);
   printf("LED clock with GPS\n");
   printf("SYSCLOCK: %lu Hz\n", HAL_RCC_GetSysClockFreq());
@@ -119,6 +122,18 @@ int main(void)
   printf("P1CLOCK : %lu Hz\n", HAL_RCC_GetPCLK1Freq());
   printf("P2CLOCK : %lu Hz\n", HAL_RCC_GetPCLK2Freq());
   terminal_init("led $");
+
+
+  //LED Lamp test
+  int hours = 0, minutes = 0;
+  for(int k = 0 ; k  < 10; k++)
+  {
+	  HAL_Delay(300);
+	  led_set_time(hours, minutes);
+	  hours += 11;
+	  minutes += 11;
+  }
+  HAL_Delay(300);
 
   /* USER CODE END 2 */
 
@@ -130,13 +145,13 @@ int main(void)
 	  HAL_Delay(50);
 	  terminal_run();
 	  gps_run();
+	  run_cpp();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
 	  if(tick < HAL_GetTick())
 	  {
 		  tick = HAL_GetTick() + 15000;
-		  int hours, minutes;
 		  if(gps_get_time(&hours, &minutes))
 		  {
 			  hours += 2;
@@ -254,7 +269,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -429,8 +444,9 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, GPS_IGT_Pin|LED_PIN_A_Pin|LED_PIN_B_Pin|LD4_Pin 
-                          |LD3_Pin|LED_PIN_5_Pin|LED_PIN_6_Pin|LED_PIN_7_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, GPS_IGT_Pin|NRF_CE_Pin|LED_PIN_A_Pin|LED_PIN_B_Pin 
+                          |LD4_Pin|LD3_Pin|LED_PIN_5_Pin|LED_PIN_6_Pin 
+                          |LED_PIN_7_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, TP_Pin|LED_PIN_2_Pin|LED_PIN_3_Pin|LED_PIN_4_Pin, GPIO_PIN_RESET);
@@ -440,23 +456,32 @@ static void MX_GPIO_Init(void)
                           |LED_PIN_11_Pin|LED_PIN_12_Pin|LED_PIN_13_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(SPI1_CS_GPIO_Port, SPI1_CS_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED_PIN_8_GPIO_Port, LED_PIN_8_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : GPS_IGT_Pin LED_PIN_A_Pin LED_PIN_B_Pin LD4_Pin 
-                           LD3_Pin */
-  GPIO_InitStruct.Pin = GPS_IGT_Pin|LED_PIN_A_Pin|LED_PIN_B_Pin|LD4_Pin 
-                          |LD3_Pin;
+  /*Configure GPIO pins : GPS_IGT_Pin NRF_CE_Pin LED_PIN_A_Pin LED_PIN_B_Pin 
+                           LD4_Pin LD3_Pin */
+  GPIO_InitStruct.Pin = GPS_IGT_Pin|NRF_CE_Pin|LED_PIN_A_Pin|LED_PIN_B_Pin 
+                          |LD4_Pin|LD3_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : TP_Pin */
-  GPIO_InitStruct.Pin = TP_Pin;
+  /*Configure GPIO pin : NRF_IRQ_Pin */
+  GPIO_InitStruct.Pin = NRF_IRQ_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(NRF_IRQ_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : TP_Pin SPI1_CS_Pin */
+  GPIO_InitStruct.Pin = TP_Pin|SPI1_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(TP_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LED_PIN_9_Pin LED_PIN_1_Pin LED_PIN_0_Pin LED_PIN_10_Pin 
                            LED_PIN_11_Pin LED_PIN_12_Pin LED_PIN_13_Pin */

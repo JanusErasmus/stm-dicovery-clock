@@ -1,10 +1,10 @@
 
 #include "main.h"
 
-static uint8_t Htens = 1;
-static uint8_t Hones = 2;
-static uint8_t Mtens = 3;
-static uint8_t Mones = 4;
+static uint8_t Htens = 8;
+static uint8_t Hones = 8;
+static uint8_t Mtens = 8;
+static uint8_t Mones = 8;
 
 void led_set_time(int hours, int minutes)
 {

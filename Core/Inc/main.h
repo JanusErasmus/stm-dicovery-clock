@@ -60,6 +60,10 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define GPS_IGT_Pin GPIO_PIN_0
 #define GPS_IGT_GPIO_Port GPIOC
+#define NRF_IRQ_Pin GPIO_PIN_1
+#define NRF_IRQ_GPIO_Port GPIOC
+#define NRF_CE_Pin GPIO_PIN_2
+#define NRF_CE_GPIO_Port GPIOC
 #define TP_Pin GPIO_PIN_7
 #define TP_GPIO_Port GPIOA
 #define LED_PIN_9_Pin GPIO_PIN_13
@@ -82,10 +86,8 @@ void Error_Handler(void);
 #define LED_PIN_3_GPIO_Port GPIOA
 #define LED_PIN_4_Pin GPIO_PIN_12
 #define LED_PIN_4_GPIO_Port GPIOA
-#define TMS_SWDIO_Pin GPIO_PIN_13
-#define TMS_SWDIO_GPIO_Port GPIOA
-#define TCK_SWCLK_Pin GPIO_PIN_14
-#define TCK_SWCLK_GPIO_Port GPIOA
+#define SPI1_CS_Pin GPIO_PIN_15
+#define SPI1_CS_GPIO_Port GPIOA
 #define LED_PIN_5_Pin GPIO_PIN_10
 #define LED_PIN_5_GPIO_Port GPIOC
 #define LED_PIN_6_Pin GPIO_PIN_11
