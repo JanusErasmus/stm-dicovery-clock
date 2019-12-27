@@ -120,7 +120,7 @@ static void handle_sentence(char *nmea)
 static void gps_igt()
 {
 	  HAL_GPIO_WritePin(GPS_IGT_GPIO_Port, GPS_IGT_Pin, GPIO_PIN_SET);
-	  HAL_Delay(500);
+	  HAL_Delay(800);
 	  HAL_GPIO_WritePin(GPS_IGT_GPIO_Port, GPS_IGT_Pin, GPIO_PIN_RESET);
 }
 
@@ -153,6 +153,9 @@ void gps_run()
 
 int gps_get_time(int *hours, int *minutes)
 {
+	if(!gps_ok)
+		return 0;
+
 	*hours = _hours;
 	*minutes = _minutes;
 	return 1;

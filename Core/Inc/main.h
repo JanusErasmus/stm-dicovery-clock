@@ -60,6 +60,8 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define GPS_IGT_Pin GPIO_PIN_0
 #define GPS_IGT_GPIO_Port GPIOC
+#define TP_Pin GPIO_PIN_7
+#define TP_GPIO_Port GPIOA
 #define LED_PIN_9_Pin GPIO_PIN_13
 #define LED_PIN_9_GPIO_Port GPIOB
 #define LED_PIN_1_Pin GPIO_PIN_14

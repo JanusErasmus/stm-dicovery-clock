@@ -69,6 +69,8 @@ static void led_switch(uint16_t bits)
 	{
 		if(bits & (1 << k))
 			reset_gpio(k);
+		else
+			set_gpio(k);
 	}
 }
 
@@ -76,27 +78,24 @@ void led_animate()
 {
 	static uint8_t toggle = 0;
 
-	//switch all LED off
-	for(uint8_t k =0; k < 14; k++)
-	{
-		set_gpio(k);
-	}
+	HAL_GPIO_WritePin(LED_PIN_B_GPIO_Port, LED_PIN_B_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(LED_PIN_A_GPIO_Port, LED_PIN_A_Pin, GPIO_PIN_RESET);
+//	//switch all LED off
+//	for(uint8_t k =0; k < 14; k++)
+//	{
+//		set_gpio(k);
+//	}
 
 	if(toggle)
 	{
+		led_switch(segments[0].A[Htens] | segments[1].A[Hones] | segments[2].A[Mtens] | segments[3].A[Mones]);
 		toggle = 0;
 		HAL_GPIO_WritePin(LED_PIN_A_GPIO_Port, LED_PIN_A_Pin, GPIO_PIN_SET);
-		HAL_GPIO_WritePin(LED_PIN_B_GPIO_Port, LED_PIN_B_Pin, GPIO_PIN_RESET);
-
-		led_switch(segments[0].A[Htens] | segments[1].A[Hones] | segments[2].A[Mtens] | segments[3].A[Mones]);
 	}
 	else
 	{
-		toggle = 1;
-		HAL_GPIO_WritePin(LED_PIN_A_GPIO_Port, LED_PIN_A_Pin, GPIO_PIN_RESET);
-		HAL_GPIO_WritePin(LED_PIN_B_GPIO_Port, LED_PIN_B_Pin, GPIO_PIN_SET);
-
-
 		led_switch(segments[0].B[Htens] | segments[1].B[Hones] | segments[2].B[Mtens] | segments[3].B[Mones]);
+		toggle = 1;
+		HAL_GPIO_WritePin(LED_PIN_B_GPIO_Port, LED_PIN_B_Pin, GPIO_PIN_SET);
 	}
 }
