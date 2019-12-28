@@ -201,9 +201,9 @@ int main(void)
 		  RTC_TimeTypeDef rtc_time = {0};
 		  HAL_RTC_GetTime(&hrtc, &rtc_time, RTC_FORMAT_BIN);
 
-		  int hours = 0, minutes = 0;
+		  int hours = 0, minutes = 0, seconds = 0;
 		  tick = HAL_GetTick() + 15000;
-		  if(gps_get_time(&hours, &minutes))
+		  if(gps_get_time(&hours, &minutes, &seconds))
 		  {
 			  hours += 2;
 			  if(hours > 23)
@@ -215,6 +215,7 @@ int main(void)
 				  printf("Updating RTC time\n");
 				  rtc_time.Hours = hours;
 				  rtc_time.Minutes = minutes;
+				  rtc_time.Seconds = seconds;
 				  HAL_RTC_SetTime(&hrtc, &rtc_time, RTC_FORMAT_BIN);
 			  }
 		  }
@@ -242,6 +243,14 @@ int main(void)
 
 	  cpp_run();
 	  HAL_IWDG_Refresh(&hiwdg);
+
+	  //when the user button is pressed, show satellites in view
+	  if(HAL_GPIO_ReadPin(USER_BTN_GPIO_Port, USER_BTN_Pin))
+	  {
+		  int fix, sv;
+		  gps_get_satellites(&fix, &sv);
+		  led_set_time(fix, sv);
+	  }
   }
   /* USER CODE END 3 */
 }
@@ -650,6 +659,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : USER_BTN_Pin */
+  GPIO_InitStruct.Pin = USER_BTN_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(USER_BTN_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LED_SEG_0_Pin LED_SEG_1_Pin LED_SEG_2_Pin TP_Pin 
                            SPI1_CS_Pin */
